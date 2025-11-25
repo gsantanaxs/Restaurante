@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Padaria - Gerenciador de Produtos</title>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🍽️ Restaurante</h1>
+            <p>Gerenciador de Produtos</p>
+        </header>
+
+        <div class="content">
+            <!-- Adicionar Produto -->
+            <div class="card">
+                <h2>Adicionar Produto</h2>
+                <div id="statusAdd"></div>
+                <div class="form-group">
+                    <label for="produtoNome">Nome do Prato</label>
+                    <input type="text" id="produtoNome" placeholder="Ex: Bolonhesa">
+                </div>
+                <div class="form-group">
+                    <label for="produtoPreco">Preço (R$)</label>
+                    <input type="number" id="produtoPreco" placeholder="Ex: 50.00" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label for="produtoFoto">URL da Foto</label>
+                    <input type="url" id="produtoFoto" placeholder="Ex: https://exemplo.com/foto.jpg">
+                </div>
+                <button onclick="adicionarProduto()">Adicionar Prato</button>
+            </div>
+
+            <!-- Lista de Produtos -->
+            <div class="card">
+                <h2>Produtos Cadastrados</h2>
+                <div id="statusList"></div>
+                <ul class="products-list" id="produtosList">
+                    <div class="empty-state">Carregando produtos...</div>
+                </ul>
+                <button onclick="carregarProdutos()" style="margin-top: 15px; background: #95a5a6;">Atualizar Lista</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuração
+        const API_URL = "http://localhost:3000";
+
+        // Carregar produtos ao abrir
+        document.addEventListener('DOMContentLoaded', carregarProdutos);
+
+        // Função: Carregar produtos
+        async function carregarProdutos() {
+            try {
+                const response = await fetch(`${API_URL}/produtos`);
+                const produtos = await response.json();
+
+                const lista = document.getElementById('produtosList');
+                
+                if (!Array.isArray(produtos) || produtos.length === 0) {
+                    lista.innerHTML = '<div class="empty-state">Nenhum produto cadastrado</div>';
+                    return;
+                }
+
+                lista.innerHTML = produtos.map(p => `
+                    <li class="product-item">
+                        <img src="${p.foto || 'https://via.placeholder.com/80'}" alt="${p.nome}" class="product-foto">
+                        <div class="product-info">
+                            <h3>${p.nome || 'Sem nome'}</h3>
+                            <p>R$ ${parseFloat(p.preco || 0).toFixed(2)}</p>
+                        </div>
+                        <div class="product-actions">
+                            <button class="btn-delete" onclick="deletarProduto(${p.id})">Deletar</button>
+                        </div>
+                    </li>
+                `).join('');
+
+                mostrarStatus('statusList', `${produtos.length} produtos carregados`, 'success');
+            } catch (error) {
+                console.error('Erro:', error);
+                mostrarStatus('statusList', 'Erro ao carregar produtos', 'error');
+            }
+        }
+
+        // Função: Adicionar produto
+        async function adicionarProduto() {
+            const nome = document.getElementById('produtoNome').value.trim();
+            const preco = document.getElementById('produtoPreco').value.trim();
+            const foto = document.getElementById('produtoFoto').value.trim();
+
+            if (!nome || !preco || !foto) {
+                mostrarStatus('statusAdd', 'Preencha todos os campos', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/produtos`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nome, preco, foto })
+                });
+
+                if (response.ok) {
+                    mostrarStatus('statusAdd', 'Produto adicionado com sucesso!', 'success');
+                    document.getElementById('produtoNome').value = '';
+                    document.getElementById('produtoPreco').value = '';
+                    document.getElementById('produtoFoto').value = '';
+                    carregarProdutos();
+                } else {
+                    mostrarStatus('statusAdd', 'Erro ao adicionar produto', 'error');
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                mostrarStatus('statusAdd', 'Erro na conexão com o servidor', 'error');
+            }
+        }
+
+        // Função: Deletar produto
+        async function deletarProduto(id) {
+            if (!confirm('Tem certeza que deseja deletar?')) return;
+
+            try {
+                const response = await fetch(`${API_URL}/produtos/${id}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    carregarProdutos();
+                    mostrarStatus('statusList', 'Produto deletado!', 'success');
+                } else {
+                    mostrarStatus('statusList', 'Erro ao deletar', 'error');
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                mostrarStatus('statusList', 'Erro na conexão', 'error');
+            }
+        }
+
+        // Função auxiliar: Mostrar status
+        function mostrarStatus(elementId, mensagem, tipo) {
+            const el = document.getElementById(elementId);
+            el.className = `status ${tipo}`;
+            el.textContent = mensagem;
+            
+            setTimeout(() => {
+                el.textContent = '';
+                el.className = '';
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
